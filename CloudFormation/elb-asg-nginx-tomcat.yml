@@ -1,0 +1,338 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'This template will create ELB Security Group, ELB, ELB Listener, Target Group, Launch Configuration and Autoscaling group'
+Parameters:
+  VpcID:
+    Description: Select the VPC id.
+    Type: String
+    Default: 'vpc-06954c7b217ec8d71'
+
+  publicSubnetsAZAB:
+    Type: CommaDelimitedList
+    Description: The list of Public SubnetIds in your VPC
+    Default: subnet-0c12d3d4a29391f61, subnet-0804ea8a01d09ffce 
+
+  privateSubnetsAZAB:
+    Type: CommaDelimitedList
+    Description: The list of Private SubnetIds in your VPC
+    Default: subnet-00098d1f517f37d81, subnet-011d8d9cc7d2f39d2
+
+  IamInstanceRole:
+    Description: "The Ima role to referance Ec2 instance."
+    Type: String
+    Default: 'arn:aws:iam::910282739423:instance-profile/CHALO-dev-InstanceProfile-service-role'
+
+  Project:
+    Description: Project Name
+    Type: String
+    Default: "New-Vertical"
+
+  ProjectMaintainer:
+    Description: Maintaing team email id. 
+    Type: String
+    Default: 'teamemail@example.com'
+
+  ResourcePrefix:
+    Description: The prefix given to the resource. Follow the standard naming Conventation.
+    Type: String
+    Default: "CHALO"
+
+  Environment:
+    Description: "Please select the environment where you want to deploy this policy" 
+    Type: String
+    Default: "dev-"
+    AllowedValues:
+      - "dev-"
+      - "stage"
+      - "prod" 
+
+
+Resources: 
+  ALBTargetGroupNginx:
+   Type: 'AWS::ElasticLoadBalancingV2::TargetGroup'
+   Properties:
+     HealthCheckIntervalSeconds: 6
+     HealthCheckTimeoutSeconds: 5
+     HealthyThresholdCount: 2
+     Port: 80
+     Protocol: HTTP
+     UnhealthyThresholdCount: 2
+     VpcId: !Ref VpcID
+     TargetType: instance
+     Tags: 
+        - Key: Name
+          Value:  !Join ["", [ !Ref ResourcePrefix, "-", !Ref Environment, "ALBTargetGroupNginx"]]
+        - Key: UseCase
+          Value: 'ALBTargetGroupNginx'
+        - Key: Maintainer
+          Value: !Ref ProjectMaintainer
+        - Key: Project
+          Value: !Ref Project
+
+
+  ALBSecurityGroupNginx:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: "ALBTrafficNginx"
+      GroupDescription: "Enable HTTP access on the inbound port for ALB"
+      VpcId: !Ref VpcID
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value:  !Join ["", [ !Ref ResourcePrefix, "-", !Ref Environment, "ALBSecurityGroupNginx"]]
+        - Key: UseCase
+          Value: 'ALBSecurityGroupNginx'
+        - Key: Maintainer
+          Value: !Ref ProjectMaintainer
+        - Key: Project
+          Value: !Ref Project
+
+
+  EC2SecurityGroupNginx:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: "EC2TrafficNginx"
+      GroupDescription: "Enable ASG traffic as inbound."
+      VpcId: !Ref VpcID
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          SourceSecurityGroupId: !Ref ALBSecurityGroupNginx
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          SourceSecurityGroupId: !Ref ALBSecurityGroupNginx
+      Tags:
+        - Key: Name
+          Value:  !Join ["", [ !Ref ResourcePrefix, "-", !Ref Environment, "EC2SecurityGroupNginx"]]
+        - Key: UseCase
+          Value: 'EC2SecurityGroupNginx'
+        - Key: Maintainer
+          Value: !Ref ProjectMaintainer
+        - Key: Project
+          Value: !Ref Project
+
+  ALBnginx:
+    Type: 'AWS::ElasticLoadBalancingV2::LoadBalancer'
+    Properties:
+      Subnets: !Ref publicSubnetsAZAB
+      SecurityGroups: 
+        - !Ref ALBSecurityGroupNginx
+      Tags: 
+        - Key: Name
+          Value:  !Join ["", [ !Ref ResourcePrefix, "-", !Ref Environment, "ALBnginx"]]
+        - Key: UseCase
+          Value: 'ALBnginx'
+        - Key: Maintainer
+          Value: !Ref ProjectMaintainer
+        - Key: Project
+          Value: !Ref Project
+
+  ALBListenerNginx:
+   Type: 'AWS::ElasticLoadBalancingV2::Listener'
+   Properties:
+     DefaultActions:
+       - Type: forward
+         TargetGroupArn: !Ref ALBTargetGroupNginx
+     LoadBalancerArn: !Ref ALBnginx
+     Port: '80'
+     Protocol: HTTP
+
+  ALBTargetGroupTomcat:
+   Type: 'AWS::ElasticLoadBalancingV2::TargetGroup'
+   Properties:
+     HealthCheckIntervalSeconds: 6
+     HealthCheckTimeoutSeconds: 5
+     HealthyThresholdCount: 2
+     Port: 8080                                 # Not Sure about the port, assuming 8080
+     Protocol: HTTP                             # Not sure about the protocol, assuming HTTP
+     UnhealthyThresholdCount: 2
+     VpcId: !Ref VpcID
+     TargetType: instance
+     Tags: 
+        - Key: Name
+          Value:  !Join ["", [ !Ref ResourcePrefix, "-", !Ref Environment, "ALBTargetGroupTomcat"]]
+        - Key: UseCase
+          Value: 'ALBTargetGroupTomcat'
+        - Key: Maintainer
+          Value: !Ref ProjectMaintainer
+        - Key: Project
+          Value: !Ref Project
+
+  ALBSecurityGroupTomcat:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: "ALBTrafficTomcat"
+      GroupDescription: "Enable HTTP access on the inbound port for ALB From ASG EC2 security Group."
+      VpcId: !Ref VpcID
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 8080
+          ToPort: 8080
+          SourceSecurityGroupId: !Ref EC2SecurityGroupNginx
+      Tags:
+        - Key: Name
+          Value:  !Join ["", [ !Ref ResourcePrefix, "-", !Ref Environment, "ALBSecurityGroupTomcat"]]
+        - Key: UseCase
+          Value: 'ALBSecurityGroupTomcat'
+        - Key: Maintainer
+          Value: !Ref ProjectMaintainer
+        - Key: Project
+          Value: !Ref Project
+
+  ALBtomCat:
+    Type: 'AWS::ElasticLoadBalancingV2::LoadBalancer'
+    Properties:
+      Scheme: internal
+      Subnets: !Ref privateSubnetsAZAB
+      SecurityGroups: 
+        - !Ref ALBSecurityGroupTomcat
+      Tags:
+        - Key: Name
+          Value:  !Join ["", [ !Ref ResourcePrefix, "-", !Ref Environment, "ALBtomCat"]]
+        - Key: UseCase
+          Value: 'ALBtomCat'
+        - Key: Maintainer
+          Value: !Ref ProjectMaintainer
+        - Key: Project
+          Value: !Ref Project
+
+  ALBListenerTomcat:
+   Type: 'AWS::ElasticLoadBalancingV2::Listener'
+   Properties:
+     DefaultActions:
+       - Type: forward
+         TargetGroupArn: !Ref ALBTargetGroupTomcat
+     LoadBalancerArn: !Ref ALBtomCat
+     Port: '8080'
+     Protocol: HTTP   
+
+  EC2SecurityGroupTomcat:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: "EC2TrafficTomcat"
+      GroupDescription: "Enable ASG traffic as inbound."
+      VpcId: !Ref VpcID
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 8080
+          ToPort: 8080
+          SourceSecurityGroupId: !Ref ALBSecurityGroupTomcat
+      Tags:
+        - Key: Name
+          Value:  !Join ["", [ !Ref ResourcePrefix, "-", !Ref Environment, "EC2SecurityGroupTomcat"]]
+        - Key: UseCase
+          Value: 'EC2SecurityGroupTomcat'
+        - Key: Maintainer
+          Value: !Ref ProjectMaintainer
+        - Key: Project
+          Value: !Ref Project 
+
+  EC2KeyPair:
+    Type: 'AWS::EC2::KeyPair'
+    Properties:
+      KeyName: MyKeyPair
+      Tags:
+        - Key: Name
+          Value:  !Join ["", [ !Ref ResourcePrefix, "-", !Ref Environment, "EC2KeyPair"]]
+        - Key: UseCase
+          Value: 'EC2KeyPair'
+        - Key: Maintainer
+          Value: !Ref ProjectMaintainer
+        - Key: Project
+          Value: !Ref Project 
+
+  AsgConfigNginx:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties:
+      InstanceType: t2.micro
+      KeyName: !Ref EC2KeyPair
+      IamInstanceProfile: !Ref IamInstanceRole
+      BlockDeviceMappings: 
+        - DeviceName: '/dev/sda1'
+          Ebs: 
+              DeleteOnTermination: True
+              Encrypted: True
+              VolumeSize: '20'
+              VolumeType: gp2
+      SecurityGroups:
+      - !Ref EC2SecurityGroupNginx
+      ImageId: "ami-0cca134ec43cf708f"
+      UserData:
+        Fn::Base64: 
+          !Sub |
+            #!/bin/bash
+            sudo su
+            sudo yum update -y
+            sudo yum install nginx -y
+            sudo ufw allow -y 'nginx'
+            sudo systemctl start nginx
+            sudo systemctl enable nginx
+
+  AsgConfigTomcat:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties:
+      InstanceType: t2.micro
+      BlockDeviceMappings: 
+        - DeviceName: '/dev/sda1'
+          Ebs: 
+              DeleteOnTermination: True
+              Encrypted: True
+              VolumeSize: '20'
+              VolumeType: gp2
+      KeyName: !Ref EC2KeyPair
+      IamInstanceProfile: !Ref IamInstanceRole
+      SecurityGroups:
+      - !Ref EC2SecurityGroupTomcat
+      ImageId: "ami-0cca134ec43cf708f"
+      UserData:
+        Fn::Base64: 
+          !Sub |
+            #!/bin/bash
+            echo I dont know the tomcat installation process. Consider this as installation.
+ 
+  AsgGroupNginx:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    DependsOn:
+      - AsgConfigTomcat
+      - AsgConfigNginx
+      - ALBtomCat
+      - ALBnginx
+    Properties:
+      # PropagateAtLaunch: 'true'
+      VPCZoneIdentifier: !Ref publicSubnetsAZAB
+      LaunchConfigurationName: !Ref AsgConfigNginx
+      MinSize: '1'
+      MaxSize: '2'
+      HealthCheckGracePeriod: 300
+      MaxInstanceLifetime: 2592000
+      TargetGroupARNs:
+        - !Ref ALBTargetGroupNginx
+  
+
+  AsgGroupTomcat:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    DependsOn:
+      - AsgConfigTomcat
+      - AsgConfigNginx
+      - ALBtomCat
+      - ALBnginx
+    Properties:
+      # PropagateAtLaunch: 'true'
+      VPCZoneIdentifier: !Ref privateSubnetsAZAB
+      LaunchConfigurationName: !Ref AsgConfigTomcat
+      MinSize: '1'
+      MaxSize: '2'
+      HealthCheckGracePeriod: 300
+      MaxInstanceLifetime: 2592000
+      TargetGroupARNs:
+        - !Ref ALBTargetGroupTomcat
+      

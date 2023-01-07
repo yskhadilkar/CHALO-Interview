@@ -1,0 +1,74 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'VPC: NAT Gateway, a cloudonaut.io template'
+
+Parameters:
+  Project:
+    Description: Project Name
+    Type: String
+    Default: "New-Vertical"
+
+  ProjectMaintainer:
+    Description: Maintaing team email id. 
+    Type: String
+    Default: 'teamemail@example.com'
+
+  ResourcePrefix:
+    Description: The prefix given to the resource. Follow the standard naming Conventation.
+    Type: String
+    Default: "CHALO"
+
+  Environment:
+    Description: "Please select the environment where you want to deploy this policy" 
+    Type: String
+    Default: "stage"
+    AllowedValues:
+      - "dev"
+      - "stage"
+      - "prod" 
+
+  SubnetID:
+    Description: "Mention the Subnet ID."
+    Type: String
+    Default: "subnet-0c12d3d4a29391f61"
+
+  RouteTableAZAPrivate:
+    Description: "mention the Route Table"
+    Type: String
+    Default: "rtb-09f51b483f043a993"
+
+Resources:
+  ElasticIp:
+    Type: 'AWS::EC2::EIP'
+    Properties:
+      Domain: vpc
+      Tags: 
+        - Key: Name
+          Value:  !Join ["", [ !Ref ResourcePrefix, "-", !Ref Environment, "-VPC"]]
+        - Key: UseCase
+          Value: 'Network Setup'
+        - Key: Maintainer
+          Value: !Ref ProjectMaintainer
+        - Key: Project
+          Value: !Ref Project
+
+  NatGateway:
+    Type: 'AWS::EC2::NatGateway'
+    Properties:
+      AllocationId: !GetAtt 'ElasticIp.AllocationId'
+      SubnetId: "subnet-0c12d3d4a29391f61"
+      Tags: 
+        - Key: Name
+          Value:  !Join ["", [ !Ref ResourcePrefix, "-", !Ref Environment, "-NatGateway"]]
+        - Key: UseCase
+          Value: 'NatGateway'
+        - Key: Maintainer
+          Value: !Ref ProjectMaintainer
+        - Key: Project
+          Value: !Ref Project
+
+  Route:
+    Type: 'AWS::EC2::Route'
+    Properties:
+      RouteTableId: !Ref RouteTableAZAPrivate
+      DestinationCidrBlock: '0.0.0.0/0'
+      NatGatewayId: !Ref NatGateway

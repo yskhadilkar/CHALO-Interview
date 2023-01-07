@@ -1,0 +1,99 @@
+
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Deploy RDS Postgres'
+
+Parameters:
+  VpcID:
+    Description: Select the VPC id.
+    Type: String
+    Default: 'vpc-06954c7b217ec8d71'
+
+  Project:
+    Description: Project Name
+    Type: String
+    Default: "New-Vertical"
+
+  ProjectMaintainer:
+    Description: Maintaing team email id. 
+    Type: String
+    Default: 'teamemail@example.com'
+
+  ResourcePrefix:
+    Description: The prefix given to the resource. Follow the standard naming Conventation.
+    Type: String
+    Default: "CHALO"
+
+  Environment:
+    Description: "Please select the environment where you want to deploy this policy" 
+    Type: String
+    Default: "dev"
+    AllowedValues:
+      - "dev"
+      - "stage"
+      - "prod" 
+
+  TomcatEC2SecurityGrop:
+    Description: "The Security group of application server ec2."
+    Type: String
+    Default: 'sg-08d025e59f3ac304e'
+
+  privateSubnets2AZAB:
+    Type: CommaDelimitedList
+    Description: The list of Private SubnetIds in your VPC
+    Default: subnet-0b092094798101426, subnet-05f9eb8ad2be8f355
+
+  KMSKeyId:
+    Description: "Unified Key ID of KMS"
+    Type: String
+    Default: '5c4392f4-3664-4b62-8955-ce4c4d757937'
+
+Resources:
+  
+  DatabaseSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupName: 'DatabaseSecurityGroup'
+      GroupDescription: 'Security Group of RDS to accept traffic from tomcat servers.'
+      VpcId: !Ref VpcID
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: 5432
+        ToPort: 5432
+        SourceSecurityGroupId: !Ref TomcatEC2SecurityGrop
+
+  DBSubnetGroup:
+    Type: 'AWS::RDS::DBSubnetGroup'
+    Properties:
+      DBSubnetGroupDescription: !Ref 'AWS::StackName'
+      SubnetIds: !Ref privateSubnets2AZAB
+  DBInstance:
+    Type: 'AWS::RDS::DBInstance'
+    Properties:
+      AllocatedStorage: '20'
+      AllowMajorVersionUpgrade: false
+      AutoMinorVersionUpgrade: true
+      BackupRetentionPeriod: '7'
+      CopyTagsToSnapshot: true
+      DBInstanceClass: 'db.t3.micro'
+      DBSubnetGroupName: !Ref DBSubnetGroup
+      Engine: postgres
+      EngineVersion: '14'
+      KmsKeyId: !Ref KMSKeyId
+      MasterUsername: 'yash'
+      MasterUserPassword: 'Admin123'
+      MultiAZ: 'true'
+      PreferredBackupWindow: '09:54-10:24'
+      PreferredMaintenanceWindow: 'sat:07:00-sat:07:30'
+      StorageType: gp2
+      StorageEncrypted: 'true'
+      VPCSecurityGroups:
+      - !Ref DatabaseSecurityGroup
+      Tags: 
+        - Key: Name
+          Value:  !Join ["", [ !Ref ResourcePrefix, "-", !Ref Environment, "RDS-Postgres"]]
+        - Key: UseCase
+          Value: 'RDSInstace'
+        - Key: Maintainer
+          Value: !Ref ProjectMaintainer
+        - Key: Project
+          Value: !Ref Project

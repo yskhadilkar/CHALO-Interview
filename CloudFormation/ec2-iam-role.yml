@@ -1,0 +1,161 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "CloudFormation template to create an user managed ec2-instance policy"
+
+Parameters:
+
+  Project:
+    Description: Project Name
+    Type: String
+    Default: "New-Vertical"
+
+  ProjectMaintainer:
+    Description: Maintaing team email id. 
+    Type: String
+    Default: 'teamemail@example.com'
+
+  ResourcePrefix:
+    Description: The prefix given to the resource. Follow the standard naming Conventation.
+    Type: String
+    Default: "CHALO"
+
+  Environment:
+    Description: "Please select the environment where you want to deploy this policy" 
+    Type: String
+    Default: "dev"
+    AllowedValues:
+      - "dev"
+      - "stage"
+      - "prod" 
+
+
+Resources:
+  Policies:
+    Type: 'AWS::IAM::ManagedPolicy'
+    Properties:
+      Description: "User managed ec2-instance policy"
+      ManagedPolicyName: !Join ["", [ !Ref ResourcePrefix, "-", !Ref Environment, "-ec2-instance-policy"]]
+      Path: '/'
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - 'ec2:DescribeAccountAttributes'
+              - 'ec2:DescribeAddresses'
+              - 'ec2:DescribeFlowLogs'
+              - 'ec2:DescribeIamInstanceProfileAssociations'
+              - 'ec2:DescribeIdentityIdFormat'
+              - 'ec2:DescribeIdFormat'
+              - 'ec2:DescribeImageAttribute'
+              - 'ec2:DescribeImages'
+              - 'ec2:DescribeImportImageTasks'
+              - 'ec2:DescribeImportSnapshotTasks'
+              - 'ec2:DescribeInstanceAttribute'
+              - 'ec2:DescribeInstanceCreditSpecifications'
+              - 'ec2:DescribeInstanceEventNotificationAttributes'
+              - 'ec2:DescribeInstanceEventWindows'
+              - 'ec2:DescribeInstances'
+              - 'ec2:DescribeInstanceStatus'
+              - 'ec2:DescribeInstanceTypeOfferings'
+              - 'ec2:DescribeInstanceTypes'
+              - 'ec2:DescribeInternetGateways'
+              - 'ec2:DescribeKeyPairs'
+              - 'ec2:DescribeLaunchTemplates'
+              - 'ec2:DescribeLaunchTemplateVersions'
+              - 'ec2:DescribeNetworkAcls'
+              - 'ec2:DescribeNetworkInterfaces'
+              - 'ec2:DescribeRegions'
+              - 'ec2:DescribeReplaceRootVolumeTasks'
+              - 'ec2:DescribeReservedInstances'
+              - 'ec2:DescribeReservedInstancesListings'
+              - 'ec2:DescribeReservedInstancesModifications'
+              - 'ec2:DescribeReservedInstancesOfferings'
+              - 'ec2:DescribeRouteTables'
+              - 'ec2:DescribeScheduledInstanceAvailability'
+              - 'ec2:DescribeScheduledInstances'
+              - 'ec2:DescribeSecurityGroupReferences'
+              - 'ec2:DescribeSecurityGroupRules'
+              - 'ec2:DescribeSecurityGroups'
+              - 'ec2:DescribeSnapshotAttribute'
+              - 'ec2:DescribeSnapshots'
+              - 'ec2:DescribeSnapshotTierStatus'
+              - 'ec2:DescribeStoreImageTasks'
+              - 'ec2:DescribeSubnets'
+              - 'ec2:DescribeTags'
+              - 'ec2:DescribeVolumeAttribute'
+              - 'ec2:DescribeVolumes'
+              - 'ec2:DescribeVolumesModifications'
+              - 'ec2:DescribeVolumeStatus'
+              - 'ec2:DescribeVpcAttribute'
+              - 'ec2:ListImagesInRecycleBin'
+              - 'ec2:ListSnapshotsInRecycleBin'
+              - 'ec2:GetConsoleOutput'
+              - 'ec2:GetConsoleScreenshot'
+              - 'ec2:GetEbsDefaultKmsKeyId'
+              - 'ec2:GetEbsEncryptionByDefault'
+              - 'ec2:GetLaunchTemplateData'
+              - 'ec2:CreateTags'
+              - 'ec2:DeleteTags'
+              - 'ec2:AssociateIamInstanceProfile'
+              - 'ec2:AssociateInstanceEventWindow'
+              - 'ec2:AssociateRouteTable'
+              - 'ec2:AssociateSubnetCidrBlock'
+              - 'ec2:AssociateVpcCidrBlock'
+              - 'ec2:AttachVolume'
+              - 'ec2:CopyImage'
+              - 'ec2:CopySnapshot'
+              - 'ec2:CreateFlowLogs'
+              - 'ec2:CreateImage'
+              - 'ec2:CreateSecurityGroup'
+              - 'ec2:CreateSnapshot'
+              - 'ec2:CreateSnapshots'
+              - 'ec2:CreateVolume'
+              - 'ec2:CreateNetworkInterface'
+              - 'ec2:DescribeVpcEndpoints'
+              - 'ec2:DescribeVpcs'
+              - 'ec2:DescribeVpnConnections'
+              - 'ec2:DescribeVpnGateways'
+              - 'ec2:DetachVolume'
+              - 'ec2:EnableEbsEncryptionByDefault'
+              - 'ec2:ModifyEbsDefaultKmsKeyId'
+              - 'ec2:ResetEbsDefaultKmsKeyId'
+              - 'ec2:RevokeSecurityGroupEgress'
+              - 'ec2:RevokeSecurityGroupIngress'
+              - 'ec2:RunInstances'
+              - 'ec2:RunScheduledInstances'
+              - 'ec2:SendDiagnosticInterrupt'
+              - 'ec2:StartInstances'
+              - 'ec2:StopInstances'
+              - 'ec2:CreateNetworkInterfacePermission'
+              - 'ec2:AttachNetworkInterface'
+              - 'ec2:DeleteNetworkInterface'
+              - 'ec2:DeleteNetworkInterfacePermission'
+            Resource: '*'
+
+  EC2Role:
+    Type: 'AWS::IAM::Role'
+    DependsOn: Policies
+    Properties:
+      RoleName: !Join ["", [ !Ref ResourcePrefix, "-", !Ref Environment, "-ec2-service-role"]]
+      Description: This role is used by aws ec2 service.
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Path: /
+      ManagedPolicyArns:
+        - !Ref Policies
+      Tags: 
+        - Key: Name
+          Value:  !Join ["", [ !Ref ResourcePrefix, "-", !Ref Environment, "-ec2-service-role"]]
+        - Key: UseCase
+          Value: 'IamRole'
+        - Key: Maintainer
+          Value: !Ref ProjectMaintainer
+        - Key: Project
+          Value: !Ref Project
