@@ -1,8 +1,8 @@
 
 # CHALO new vertical by Yashodhan Khadilkar
 
-In the following sections, I will explain the understanding of the given scenario, Assumptions
-an explanation of the architecture diagram, Best practices, and further steps. 
+In the following sections, I will explain the understanding of the given scenario, assumptions
+and explanation of the architecture diagram, Best practices, and further steps. 
 
 In the cloudfromation folder, please find the CTF templates to deploy the environment. 
 
